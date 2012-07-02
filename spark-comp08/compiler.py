@@ -34,14 +34,29 @@ import sys
 
 from spark import GenericScanner, GenericParser, GenericASTTraversal
 
-from token import Token
+from token import Token, Id
 
 from AST import (CompositeExpr, NumberExpr, Program, Variable,
                  VariableExpr, VarDecList)
 
+class CompSyntaxError(Exception):
+
+    def __init__(self, lineno, token=None, msg=None):
+        self.lineno = lineno
+        self.token = token
+        self.msg = msg
+
+    def __str__(self):
+        if not self.msg:
+            return "Error at '%s', line %d" % (self.token, self.lineno)
+        else:
+            return "%s, line %d" % (self.msg, self.lineno)
+
 class ProgramScanner(GenericScanner):
+
     def __init__(self):
         GenericScanner.__init__(self)
+        self.lineno = 1
 
     def tokenize(self, input):
         self.rv = []
@@ -52,43 +67,47 @@ class ProgramScanner(GenericScanner):
         r' \s+ '
         pass
 
-    def t_escape(self, s):
-        r' [\t\r\n]'
+    def t_tab(self, s):
+        r' [\t]'
         pass
+
+    def t_newline(self, s):
+        r' \n '
+        self.lineno += 1
 
     def t_keywords(self, s):
         r' var | begin | end | if | then | else | endif | read | write '
-        self.rv.append(Token(type=s))
+        self.rv.append(Token(type='keyword', attr=s, lineno=self.lineno))
 
     def t_arithmetical_oper(self, s):
         r' \+ | - | \* | /'
-        self.rv.append(Token(type=s))
+        self.rv.append(Token(type=s, lineno=self.lineno))
 
     def t_logical_oper(self, s):
         r' <= | < | >= | > | == | <> '
-        self.rv.append(Token(type=s))
+        self.rv.append(Token(type=s, lineno=self.lineno))
 
     def t_number(self, s):
         r' \d+ '
-        t = Token(type='number', attr=s)
+        t = Token(type='number', attr=s, lineno=self.lineno)
         self.rv.append(t)
 
-    def t_letter(self, s):
+    def t_id(self, s):
         r' [A-Za-z][A-Za-z]* '
-        t = Token(type='letter', attr=s)
+        t = Id(s, self.lineno)
         self.rv.append(t)
 
     def t_punctuation(self, s):
         r' \( | \) | ; | , '
-        self.rv.append(Token(type=s))
+        self.rv.append(Token(type=s, lineno=self.lineno))
 
     def t_assign(self, s):
         r' = '
-        self.rv.append(Token(type=s))
+        self.rv.append(Token(type=s, lineno=self.lineno))
 
     def t_eof(self, s):
         r' \\0 '
-        self.rv.append(Token(type=s))
+        self.rv.append(Token(type=s, lineno=self.lineno))
 
 class ProgramParser(GenericParser):
 
@@ -96,6 +115,12 @@ class ProgramParser(GenericParser):
 
     def __init__(self):
         GenericParser.__init__(self, start="Program")
+
+    def typestring(self, tok):
+        return tok.type
+
+    def error(self, tok):
+        raise CompSyntaxError(tok.lineno, tok)
 
     def p_program_1(self, args):
         " Program ::= var VarDecList ; CompositeStatement "
@@ -183,47 +208,21 @@ class ProgramParser(GenericParser):
 #        return VariableExpr(name, None)
 
     def p_variable(self, args):
-        ' Variable ::= letter '
+        ' Variable ::= Id '
 #        return Variable(str(args[0]))
 
-    def p_oper_1(self, args):
-        ' oper ::= - '
-#        return str(args[0])
-
-    def p_oper_2(self, args):
-        ' oper ::= + '
-#        return str(args[0])
-
-    def p_oper_3(self, args):
-        ' oper ::= * '
-#        return str(args[0])
-
-    def p_oper_4(self, args):
-        ' oper ::= / '
-#        return str(args[0])
-
-    def p_oper_5(self, args):
-        ' oper ::= < '
-#        return str(args[0])
-
-    def p_oper_6(self, args):
-        ' oper ::= <= '
-#        return str(args[0])
-
-    def p_oper_7(self, args):
-        ' oper ::= > '
-#        return str(args[0])
-
-    def p_oper_8(self, args):
-        ' oper ::= >= '
-#        return str(args[0])
-
-    def p_oper_9(self, args):
-        ' oper ::= == '
-#        return str(args[0])
-
-    def p_oper_10(self, args):
-        ' oper ::= <> '
+    def p_oper(self, args):
+        '''
+          oper ::= -
+          oper ::= +
+          oper ::= *
+          oper ::= /
+          oper ::= <
+          oper ::= <=
+          oper ::= >
+          oper ::= >=
+          oper ::= ==
+          oper ::= <> '''
 #        return str(args[0])
 
 class DeclarationCheck(GenericASTTraversal):
@@ -267,7 +266,7 @@ def semantic(ast):
     DeclarationCheck(ast)
     return ast
 
-if __name__ == "__main__":
+def main():
     import sys
     filename = sys.argv[1]
     f = open(filename)
@@ -276,3 +275,6 @@ if __name__ == "__main__":
 #    program = semantic(ast)
 #    program.genC()
     f.close()
+
+if __name__ == "__main__":
+    main()

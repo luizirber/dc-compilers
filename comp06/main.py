@@ -1,10 +1,12 @@
 from compiler import Compiler
 
 def main():
-    inp = "a = 1 b = 3 : (- (+ a 4) b)"
+    import sys
+    filename = sys.argv[1]
+    f = open(filename)
 
     comp = Compiler()
-    program = comp.compile(inp)
+    program = comp.compile(f.read())
     program.genC()
 
 main()

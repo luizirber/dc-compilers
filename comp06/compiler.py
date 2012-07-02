@@ -33,6 +33,7 @@ class Compiler:
         self.tokenPos = 0
         self.nextToken()
         result = self.program()
+        print self.token
         if self.token != '\0':
             self.error()
         return result

@@ -29,37 +29,29 @@ class ExprScanner(GenericScanner):
         pass
 
     def t_oper(self, s):
-        r' \+ | -'
-        self.rv.append(Token(type=s))
+        r'\+ | -'
+        self.rv.append(Token(type='oper', attr=s))
 
     def t_number(self, s):
-        r' [0-9] '
+        r'[0-9]'
         t = Token(type='number', attr=s)
         self.rv.append(t)
 
     def t_parens(self, s):
-        r' \( | \) '
+        r'\( | \)'
         self.rv.append(Token(type=s))
 
 class ExprParser(GenericParser):
     def __init__(self):
         GenericParser.__init__(self, start="expr")
 
-    def p_expr_1(self, args):
-        ' expr ::= ( oper expr expr ) '
-        return '(' + str(args[2]) + str(args[1]) + str(args[3]) + ')'
-
-    def p_expr_2(self, args):
-        ' expr ::= number '
-        return args[0]
-
-    def p_oper_1(self, args):
-        ' oper ::= - '
-        return args[0]
-
-    def p_oper_2(self, args):
-        ' oper ::= + '
-        return args[0]
+    def p_expr(self, args):
+        """ expr ::= number
+            expr ::= ( oper expr expr )"""
+        if len(args) == 1:
+            return args[0]
+        else:
+            return '(' + str(args[2]) + str(args[1]) + str(args[3]) + ')'
 
 def scan(f):
     input = f.read()
